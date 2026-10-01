@@ -31,6 +31,7 @@
 #include "CrossPointState.h"
 #include "GlobalActions.h"
 #include "KOReaderCredentialStore.h"
+#include "LostDeviceActivity.h"
 #include "MappedInputManager.h"
 #include "OpdsServerStore.h"
 #include "RecentBookProgress.h"
@@ -46,7 +47,7 @@ namespace {
 constexpr uint32_t CAROUSEL_CACHE_MAGIC = 0x43434152;  // "CCAR"
 // Cached frames include all Home visuals, including the menu icons. Bump this
 // whenever their rendering changes so stale snapshots are rebuilt after OTA.
-constexpr uint16_t CAROUSEL_CACHE_VERSION = 5;
+constexpr uint16_t CAROUSEL_CACHE_VERSION = 6;
 constexpr char CAROUSEL_CACHE_PATH[] = "/.crosspoint/home_carousel_cache.bin";
 constexpr char CAROUSEL_CACHE_TMP_PATH[] = "/.crosspoint/home_carousel_cache.tmp";
 constexpr uint32_t CAROUSEL_FRAME_MIN_FREE_AFTER_ALLOC = 64U * 1024U;
@@ -63,6 +64,7 @@ enum class HomeMenuAction {
   Bookmarks,
   FileTransfer,
   Settings,
+  LostDevice,
 };
 
 struct HomeMenuEntry {
@@ -72,7 +74,7 @@ struct HomeMenuEntry {
 };
 
 struct HomeMenuEntries {
-  static constexpr int kCapacity = 8;
+  static constexpr int kCapacity = 9;
   std::array<HomeMenuEntry, kCapacity> entries{};
   int count = 0;
 
@@ -280,6 +282,7 @@ void appendHomeMenuItems(HomeMenuEntries& items, bool hasOpdsServers, bool hasRe
 
   items.push({tr(STR_FILE_TRANSFER), Transfer, HomeMenuAction::FileTransfer});
   items.push({tr(STR_SETTINGS_TITLE), Settings, HomeMenuAction::Settings});
+  items.push({tr(STR_LOST_DEVICE), Hotspot, HomeMenuAction::LostDevice});
 }
 
 HomeMenuEntries buildHomeMenuItems(bool hasOpdsServers, bool hasReadingStats, bool hasBookmarks, bool hasClippings) {
@@ -604,7 +607,7 @@ static_assert(HomeActivity::kMaxCachedBooks >= LyraCarouselMetrics::values.homeR
 
 int HomeActivity::getMenuItemCount() const {
   const auto& metrics = UITheme::getInstance().getMetrics();
-  int count = 4;  // File Browser, Recents, File transfer, Settings
+  int count = 5;  // File Browser, Recents, File transfer, Settings, Lost Device
   if (!metrics.homeContinueReadingInMenu && !recentBooks.empty()) {
     count += getVisibleRecentBookCount();
   } else if (metrics.homeContinueReadingInMenu && !recentBooks.empty()) {
@@ -1578,6 +1581,7 @@ void HomeActivity::loop() {
             break;
           case HomeMenuAction::ContinueReading:
           case HomeMenuAction::Settings:
+          case HomeMenuAction::LostDevice:
             break;
         }
       };
@@ -1823,6 +1827,9 @@ void HomeActivity::loop() {
         break;
       case HomeMenuAction::Settings:
         onSettingsOpen();
+        break;
+      case HomeMenuAction::LostDevice:
+        onLostDeviceOpen();
         break;
     }
   };
@@ -2368,6 +2375,11 @@ void HomeActivity::onContinueReading() {
 void HomeActivity::onRecentsOpen() { activityManager.goToRecentBooks(); }
 
 void HomeActivity::onSettingsOpen() { activityManager.goToSettings(); }
+
+void HomeActivity::onLostDeviceOpen() {
+  startActivityForResult(std::make_unique<LostDeviceActivity>(renderer, mappedInput),
+                         [this](const ActivityResult&) { requestUpdate(); });
+}
 
 void HomeActivity::onFileTransferOpen() { activityManager.goToFileTransfer(); }
 

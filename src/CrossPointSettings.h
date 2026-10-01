@@ -627,6 +627,8 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint16_t keyboardLayouts = 0;
   // Custom KOReader sync device display name. Empty means use the hardware default.
   char deviceName[21] = "";
+  // Owner contact line shown on the Home > Lost Device screen. Empty means not set.
+  char ownerContact[81] = "";
   // Quick Resume: keep current content visible with moon icon instead of showing a static sleep screen.
   uint8_t quickResumeSleepScreen = QUICK_RESUME_NEVER;
 #ifdef CROSSINK_ENABLE_READING_STATS_TOGGLE
